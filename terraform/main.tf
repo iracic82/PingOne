@@ -336,7 +336,7 @@ data "aws_ami" "amazon_linux" {
 }
 
 data "template_file" "user_data" {
-    template = file("./scripts/aws_user_data.sh")
+    template = file("${path.module}/scripts/aws_user_data.sh")
 
     vars = {
       sandbox_id               = var.sandbox_id
