@@ -266,12 +266,14 @@ resource "aws_eip_association" "dc1_assoc" {
   network_interface_id = aws_network_interface.dc1_eni.id
   allocation_id        = aws_eip.dc1_eip.id
   private_ip_address   = "10.100.1.100"
+   depends_on = [aws_instance.dc1]
 }
 
 resource "aws_eip_association" "dc2_assoc" {
   network_interface_id = aws_network_interface.dc2_eni.id
   allocation_id        = aws_eip.dc2_eip.id
   private_ip_address   = "10.100.2.100"
+  depends_on = [aws_instance.dc2]
 }
 
 # Elastic IP for client
