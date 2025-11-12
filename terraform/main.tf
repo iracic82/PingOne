@@ -453,8 +453,10 @@ resource "aws_instance" "linux_vm" {
 
   tags = {
     Name = "linux-vm"
-  depends_on = [aws_instance.linux_vm]
+  
   }
-
-  depends_on = [aws_internet_gateway.gw]
+  depends_on = [
+    aws_instance.linux_vm,
+    aws_internet_gateway.gw
+  ]
 }
