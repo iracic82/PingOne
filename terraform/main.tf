@@ -336,7 +336,7 @@ data "aws_ami" "amazon_linux" {
 }
 
 data "template_file" "user_data" {
-    template = file("/root/infoblox-lab/instruqt-aws-dc-lab-full/terraform/scripts/aws-user-data.sh")
+    template = file("/root/infoblox-lab/PingOne/terraform/scripts/aws-user-data.sh")
 
     vars = {
       sandbox_id               = var.sandbox_id
