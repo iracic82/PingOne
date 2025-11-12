@@ -38,7 +38,6 @@ output "infoblox_vnios_public_ips" {
   description = "Public IPs of Infoblox vNIOS GM and GMC"
   value = {
     gm  = aws_eip.gm_eip.public_ip
-    gmc = aws_eip.gmc_eip.public_ip
   }
 }
 
@@ -48,12 +47,14 @@ output "infoblox_ui_access" {
 Grid Master (GM):
   https://${aws_eip.gm_eip.public_ip}
 
-Grid Member Candidate (GMC):
-  https://${aws_eip.gmc_eip.public_ip}
-
 Default UI login:
   Username: admin
   Password: Proba123!
 EOT
+}
+
+output "linux_ssh_access" {
+  description = "SSH access command for the Linux instance"
+  value = "Linux VM (${aws_instance.linux_vm.private_ip}) => ssh -i '${var.aws_ec2_key_pair_name}.pem' ec2-user@${aws_eip.linux_eip.public_ip}"
 }
 
