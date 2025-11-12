@@ -4,6 +4,7 @@ output "domain_controllers" {
     dc1 = aws_eip.dc1_eip.public_ip
     dc2 = aws_eip.dc2_eip.public_ip
     dc3 = aws_eip.dc3_eip.public_ip
+    linux = aws_eip.linux_eip.public_ip
   }
 }
 
