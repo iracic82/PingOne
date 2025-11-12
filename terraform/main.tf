@@ -319,6 +319,7 @@ resource "aws_eip_association" "client_assoc" {
   network_interface_id  = aws_network_interface.client_eni.id
   allocation_id         = aws_eip.dc3_eip.id
   private_ip_address    = "10.100.2.111"
+  depends_on = [aws_instance.client_vm]
 }
 
 #############################################
@@ -452,6 +453,7 @@ resource "aws_instance" "linux_vm" {
 
   tags = {
     Name = "linux-vm"
+  depends_on = [aws_instance.linux_vm]
   }
 
   depends_on = [aws_internet_gateway.gw]
