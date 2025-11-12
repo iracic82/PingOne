@@ -14,6 +14,8 @@ data "aws_ami" "windows" {
   }
 }
 
+
+
 resource "aws_vpc" "main" {
   provider             = aws.eu-central-1
   cidr_block           = var.vpc_cidr
@@ -315,4 +317,140 @@ resource "aws_eip_association" "client_assoc" {
   network_interface_id  = aws_network_interface.client_eni.id
   allocation_id         = aws_eip.dc3_eip.id
   private_ip_address    = "10.100.2.111"
+}
+
+#############################################
+# 🐧 Linux Instance (Publicly Reachable via EIP)
+#############################################
+
+# Lookup latest Amazon Linux 2 AMI
+data "aws_ami" "amazon_linux" {
+  provider    = aws.eu-central-1
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+}
+
+data "template_file" "user_data" {
+    template = file("/root/infoblox-lab/instruqt-aws-dc-lab-full/terraform/scripts/aws-user-data.sh")
+
+    vars = {
+      sandbox_id               = var.sandbox_id
+      ldap_base_dn             = var.ldap_base_dn
+      ldap_server              = var.ldap_server
+      ldap_user_search_base    = var.ldap_user_search_base
+      ldap_bind_dn             = var.ldap_bind_dn
+      ldap_bind_password       = var.ldap_bind_password
+      pingone_admin_env_id     = var.pingone_admin_env_id
+      pingone_application_id   = var.pingone_application_id
+      pingone_client_id        = var.pingone_client_id
+      pingone_client_secret    = var.pingone_client_secret
+      pingone_client_secret_app = var.pingone_client_secret_app
+      pingone_issuer           = var.pingone_issuer
+      pingone_target_env_id    = var.pingone_target_env_id
+      aws_region               = var.aws_region_target
+    }
+  }
+
+# Security Group for SSH
+resource "aws_security_group" "linux_sg" {
+  provider    = aws.eu-central-1
+  name        = "allow_ssh_linux"
+  vpc_id      = aws_vpc.main.id
+  description = "Allow SSH for Linux instance"
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Restrict to your IP if needed
+  }
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Restrict to your IP if needed
+  }
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Restrict to your IP if needed
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "linux_sg" }
+}
+
+ # TLS Private Key for SSH (add this near the top of main.tf)
+  resource "tls_private_key" "demo_key" {
+    algorithm = "RSA"
+    rsa_bits  = 4096
+  }
+
+resource "aws_key_pair" "demo_key_pair" {
+  key_name   = var.aws_ec2_key_pair_name
+  public_key = tls_private_key.demo_key.public_key_openssh
+}
+
+resource "local_sensitive_file" "private_key_pem" {
+  content         = tls_private_key.demo_key.private_key_pem
+  filename        = "./${var.aws_ec2_key_pair_name}.pem"
+  file_permission = "0400"
+}
+
+# ENI for Linux Instance (Private IP)
+resource "aws_network_interface" "linux_eni" {
+  provider        = aws.eu-central-1
+  subnet_id       = aws_subnet.public_b.id
+  private_ips     = ["10.100.2.120"]
+  security_groups = [aws_security_group.linux_sg.id]
+
+  tags = { Name = "linux-eni" }
+}
+
+# Elastic IP for Public SSH Access
+resource "aws_eip" "linux_eip" {
+  provider = aws.eu-central-1
+  vpc      = true
+  tags     = { Name = "linux-eip" }
+}
+
+# Associate EIP with Linux ENI
+resource "aws_eip_association" "linux_assoc" {
+  provider             = aws.eu-central-1
+  network_interface_id = aws_network_interface.linux_eni.id
+  allocation_id        = aws_eip.linux_eip.id
+  private_ip_address   = "10.100.2.120"
+}
+
+# Launch Linux EC2 Instance
+resource "aws_instance" "linux_vm" {
+  provider      = aws.eu-central-1
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = "t3.micro"
+  key_name = aws_key_pair.demo_key_pair.key_name
+
+  network_interface {
+    network_interface_id = aws_network_interface.linux_eni.id
+    device_index         = 0
+  }
+
+  user_data              = "${data.template_file.user_data.rendered}"
+
+  tags = {
+    Name = "linux-vm"
+  }
+
+  depends_on = [aws_internet_gateway.gw]
 }
